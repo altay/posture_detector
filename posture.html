@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>&#10029; &#10029; Improve your posture &#10029; &#10029;</title>
+<script src='http://cdn.zigfu.com/zigjs/zig.min.js'></script>
+<script src='https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js'></script>
+<script src='https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.18/jquery-ui.min.js'></script>
+<script src='js/Audiolet.min.js'></script>
+<script src='js/music.js'></script>
+<link rel='stylesheet' href='http://ajax.googleapis.com/ajax/libs/jqueryui/1.8/themes/base/jquery-ui.css'></link>
+ 
+<script>
+ 
+$(document).ready(function(){
+  // use log instead of console.log
+  function log(msg) { if (typeof console!='undefined') { console.log(msg); }}
+
+  // frequency of the tone in Hz
+  var TONE_FREQUENCY = 300;
+
+  // for calibration
+  var TARGET_DIFF = 0;
+  var CURRENT_DIFF = 0;
+
+  // sine wave => gain control => output
+  var AudioletApp = function() {
+    this.audiolet = new Audiolet();
+    this.sine = new Sine(this.audiolet, TONE_FREQUENCY);
+    this.gain = new Gain(this.audiolet);
+    this.sine.connect(this.gain);
+    this.gain.connect(this.audiolet.output);
+  };
+  var theSound = new AudioletApp();
+  theSound.gain.gain.setValue(0);
+
+  function to_css(pos){ return ((-1*(pos.toFixed()))+400); }
+
+  $('.pause').on('click', function(){ $('.pause').toggle(); });
+  $('.visuals').on('click', function(){ $('.visuals').toggle(); });
+  $('#calibrate').on('click', function(){ TARGET_DIFF = (CURRENT_DIFF + 10) });
+
+  var posture = zig.EngageUsersWithSkeleton(1);
+  posture.addEventListener('userengaged', function(user) {
+    log('user engaged');
+    var $head = $('.head');
+    var $torso = $('.torso');
+    user.addEventListener('userupdate', function(user) {
+      var paused = $('#unpause').is(':visible'); // don't track if paused
+      var pause_visuals = $('#unpause_visuals').is(':visible'); // don't show blue and red dot 
+      if (paused) { theSound.gain.gain.setValue(0); }
+      else if ((new Date() * 1)%2 == 1) { // sample less often
+        var head = user.skeleton[zig.Joint.Head];
+        var torso = user.skeleton[zig.Joint.Torso];
+        var headX = head.position[0];
+        var torsoX = torso.position[0];
+        CURRENT_DIFF = (torsoX - headX);
+        theSound.gain.gain.setValue(CURRENT_DIFF<TARGET_DIFF ? 0 : CURRENT_DIFF/150);
+        if (!pause_visuals) {
+          $head.css({'top':to_css(head.position[1])+"px", 'left':to_css(headX)+'px'});
+          $torso.css({'top':to_css(torso.position[1])+'px', 'left':to_css(torsoX)+'px'});
+        }
+      }
+    });
+  });
+  posture.addEventListener('userdisengaged', function(user) {
+    log('User disengaged: ' + user.id);
+  });
+  zig.addListener(posture);
+
+ 
+});
+ 
+ 
+</script>
+ 
+<style>
+    body {
+      /*background: #FFA500;*/
+      padding: 20px 100px;
+    }
+    h1, .slider {
+      margin: 30px auto;
+    }
+    .container {
+      margin: 0 auto;
+      width: 60%;
+    }
+    h2 label {
+      font-size: small;
+      font-weight: normal;
+    }
+    .skeleton {
+      height: 500px;
+      width: 500px;
+      position: relative;
+    }
+    .skeleton .torso, 
+    .skeleton .head, 
+    .skeleton .neck {
+      color: #000;
+      position: absolute;
+      z-index: 1000;
+      height: 40px;
+      text-align: center;
+      width: 40px;
+      border-radius: 40px;
+    }
+    .skeleton .head { background: blue; }
+    .skeleton .neck { background: green; }
+    .skeleton .torso { background: red; }
+    #unpause, #unpause_visuals { display: none; }
+</style>
+ 
+</head>
+<body>
+ 
+<div class='container'>
+  <input id='calibrate' value='Calibrate' type='submit' />
+  <br />
+  <input id='pause' class='pause' value='Pause tracking' type='submit' />
+  <input id='unpause' class='pause' value='Unpause tracking' type='submit' />
+  <br />
+  <input id='unpause_visuals' class='visuals' value='Unpause visuals' type='submit' />
+  <input id='pause_visuals' class='visuals' value="Pause visuals" type='submit' />
+  <div class='skeleton'>
+    <div class='head'></div>
+    <div class='torso'></div>
+  </div>
+  <!--
+  <h2>
+    Volume: <span id='v-label'>100</span>%
+    <input id='v-enable' type='checkbox' checked='checked' name='v-enable' />
+  </h2>
+  <div id='v-slider' class='slider'></div>
+  -->
+</div>
+ 
+</body>
+</html>
